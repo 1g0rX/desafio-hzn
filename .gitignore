@@ -15,3 +15,5 @@ uploads/
 pycache 
 *.pyc
 .DS_Store
+
+historico_ia.txt
