@@ -6,20 +6,28 @@ from email.mime.multipart import MIMEMultipart
 import pdfplumber
 import docx
 import re
+import datetime
 from dotenv import load_dotenv
-import google.generativeai as genai
+from google import genai
+from google.genai import types
 
-# Load the environment vars from the env file
+# load env vars
 load_dotenv()
 
-# Confidential Data
-AI_API_KEY = os.getenv("AI_API_KEY")
+# confidential data
+AI_API_KEY = os.getenv("AI_API_KEY") 
 EMAIL_SENDER = os.getenv("EMAIL_SENDER")
 EMAIL_PASSWORD = os.getenv("EMAIL_PASSWORD")
-BPA_PROMPT = os.getenv("BPA_PROMPT")
+
+# read prompt from file or env
+try:
+    with open("prompt.txt", "r", encoding="utf-8") as f:
+        BPA_PROMPT = f.read()
+except FileNotFoundError:
+        BPA_PROMPT = os.getenv("BPA_PROMPT", "")
 
 def extract_text_from_file(file_path: str) -> str:
-    """Extracts text from PDF or DOCX files."""
+    """extract text from pdf or docx."""
     extracted_text = ""
     extension = file_path.lower().split('.')[-1]
 
@@ -42,30 +50,49 @@ def extract_text_from_file(file_path: str) -> str:
     return extracted_text.strip()
 
 def analyze_with_ai(idea_text: str) -> dict:
-    """Send the text to the AI using the prompt."""
+    """send text to ai and parse."""
     if not AI_API_KEY:
         raise ValueError("Chave da API da IA não configurada no ambiente.")
 
-    genai.configure(api_key=AI_API_KEY)
-    
-    model = genai.GenerativeModel(
-        model_name="gemini-3.1-pro",
-        system_instruction=BPA_PROMPT
-    )
+    # init ai client
+    client = genai.Client(api_key=AI_API_KEY)
 
     try:
-        response = model.generate_content(f"Aqui está o input para análise:\n\n{idea_text}")
+        # call model
+        response = client.models.generate_content(
+            model='gemini-3.1-flash-lite',
+            contents=f"Aqui está o input para análise:\n\n{idea_text}",
+            config=types.GenerateContentConfig(
+                system_instruction=BPA_PROMPT,
+            )
+        )
         ai_content = response.text
 
+        # save raw ai output to log
+        try:
+            timestamp = datetime.datetime.now().strftime('%d/%m/%Y %H:%M:%S')
+            with open("historico_ia.txt", "a", encoding="utf-8") as log_file:
+                log_file.write("\n" + "="*50 + "\n")
+                log_file.write(f"ANÁLISE DA IA - {timestamp}\n")
+                log_file.write("="*50 + "\n")
+                log_file.write(ai_content + "\n")
+        except Exception as log_err:
+            print(f"Aviso: Não foi possível salvar o log da IA: {log_err}")
+
+        # extract data with regex
         score_match = re.search(r'SCORE:\s*(\d+/\d+)', ai_content, re.IGNORECASE)
         verdict_match = re.search(r'VEREDITO:\s*(PASSAR|APROFUNDAR|AVANÇAR)', ai_content, re.IGNORECASE)
-        red_flags_match = re.search(r'🚩\s*RED FLAGS(.*?)(?:💀|✅|⚖️|🎬|$)', ai_content, re.DOTALL)
-        cost_match = re.search(r'⚖️\s*CUSTO DE OPORTUNIDADE(.*?)(?:🎬|$)', ai_content, re.DOTALL)
+        
+        # extract red flags
+        red_flags_match = re.search(r'RED FLAGS[^\w]*\s*(.*?)(?=CUSTO DE OPORTUNIDADE|$)', ai_content, re.IGNORECASE | re.DOTALL)
+        
+        # extract opportunity cost
+        cost_match = re.search(r'CUSTO DE OPORTUNIDADE[^\w]*\s*(.*?)(?=🎬|$)', ai_content, re.IGNORECASE | re.DOTALL)
 
         return {
             "full_text": ai_content,
             "score": score_match.group(1) if score_match else "N/A",
-            "verdict": verdict_match.group(1) if verdict_match else "Indefinido",
+            "verdict": verdict_match.group(1).upper() if verdict_match else "Indefinido",
             "red_flags": red_flags_match.group(1).strip() if red_flags_match else "Não identificadas",
             "opportunity_cost": cost_match.group(1).strip() if cost_match else "Não definido"
         }
@@ -80,11 +107,14 @@ def analyze_with_ai(idea_text: str) -> dict:
         }
 
 def send_email(recipient: str, subject: str, body: str):
-    """Generic function to send emails via SMTP."""
+    """send email via smtp."""
+    
+    # mock email if no credentials
     if not EMAIL_SENDER or not EMAIL_PASSWORD:
-        print("Credenciais de e-mail não configuradas. O envio de e-mail foi ignorado.")
+        print("Erro: EMAIL_SENDER ou EMAIL_PASSWORD não configurados no .env")
         return
 
+    # setup email message
     msg = MIMEMultipart()
     msg['From'] = EMAIL_SENDER
     msg['To'] = recipient
@@ -93,8 +123,9 @@ def send_email(recipient: str, subject: str, body: str):
     msg.attach(MIMEText(body, 'html'))
 
     try:
+        # send via gmail smtp
         server = smtplib.SMTP('smtp.gmail.com', 587)
-        server.starttls()
+        server.starttls()  # enable tls
         server.login(EMAIL_SENDER, EMAIL_PASSWORD)
         server.send_message(msg)
         server.quit()
