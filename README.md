@@ -16,7 +16,7 @@ Sistema desenvolvido para automatizar a triagem e análise de oportunidades da B
 
 A escolha da stack priorizou simplicidade de manutenção e baixo overhead:
 
-* **Frontend (Vanilla JS + Tailwind):** Optamos por não usar frameworks (React/Vue) para manter a aplicação extremamente leve e sem necessidade de build. O JavaScript puro é suficiente para o consumo das rotas da API e manipulação do DOM.
+* **Frontend (Vanilla JS + Tailwind):** Optei por não usar frameworks (React/Vue) para manter a aplicação extremamente leve e sem necessidade de build. O JavaScript puro é suficiente para o consumo das rotas da API e manipulação do DOM.
 * **Backend (FastAPI):** Escolhido pela alta performance e suporte nativo a operações assíncronas, o que evita gargalos durante o processamento de arquivos e chamadas de API externas.
 * **Persistência (SQLite + SQLAlchemy):** O SQLite foi escolhido pela portabilidade. O uso de SQLAlchemy permite escalar para um banco mais robusto (Postgres) apenas trocando a string de conexão.
 * **IA (Gemini 3.1 Flash Lite):** Modelo selecionado pelo equilíbrio entre latência e precisão na extração de campos estruturados.
@@ -52,21 +52,20 @@ A escolha da stack priorizou simplicidade de manutenção e baixo overhead:
 
 1. Entre na pasta do servidor:
 `cd backend`
-2. Crie e ative o ambiente virtual:
-**Windows:**
+2. Crie o ambiente virtual:
 `python -m venv venv`
+3. Ative o ambiente virtual (Windows):
 `venv\Scripts\activate`
-**Linux / macOS:**
-`python3 -m venv venv`
+4. Ative o ambiente virtual (Linux/macOS):
 `source venv/bin/activate`
-3. Instale os pacotes:
+5. Instale os pacotes:
 `pip install -r requirements.txt`
-4. Configure o arquivo .env seguindo o .env.example:
+6. Configure o arquivo .env seguindo o .env.example:
 `AI_API_KEY="SUA_CHAVE_AQUI"`
 `EMAIL_SENDER="email_que_envia@gmail.com"`
 `EMAIL_PASSWORD="senha_de_app"`
 `EVALUATOR_REAL_EMAIL="seu_email@pessoal.com"`
-5. Suba o servidor:
+7. Suba o servidor:
 `uvicorn main:app --reload`
 
 ### Frontend
@@ -81,4 +80,4 @@ Abra a pasta frontend no seu editor e utilize o Live Server (ou similar) no arqu
 
 * **Prompt:** O texto da tese de investimento fica no servidor (prompt.txt) e nunca é exposto ao cliente.
 * **Secrets:** Nenhuma chave de API ou senha está no código; tudo é lido via variáveis de ambiente.
-* **Histórico:** O arquivo historico_ia.txt serve para depuração e conferência do raciocínio do modelo, garantindo que a tese esteja sendo aplicada corretamente.
+* **Histórico:** O arquivo `historico_ia`.txt serve para depuração e conferência do raciocínio do modelo, garantindo que a tese esteja sendo aplicada corretamente.
